@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres
+    volumes:
+      # Means that schema.psql will be run whenever ./data/db is not present
+      # If you want to refresh the schema (and delete current data)
+      # delete ./data/db
+      - ./sql/mail-schema.psql:/docker-entrypoint-initdb.d/1-mail-schema.sql
+      - ./sql/cnc-schema.psql:/docker-entrypoint-initdb.d/2-cnc-schema.sql
+      # This is a a persistent store of PSQL data for development
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_PASSWORD=toor
+    # will periodically run this command to check it hasn't crashed
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 1s
+      timeout: 5s
+      retries: 5
+  mail-service:
+    build:
+      context: https://github.com/innexgo/mail-service.git
+      dockerfile: Dev.Dockerfile
+    environment:
+      - RUST_BACKTRACE=1
+    command:
+      [
+        "/bin/mail-service",
+        "--port=8079",
+        "--database-url=postgres://postgres:toor@db/mail",
+      ]
+    ports:
+      - "8079:8079"
+    # waits for postgres's healthcheck to succeed before running mail-service
+    depends_on:
+      db:
+        condition: service_healthy
+  cnc-service:
+    build:
+      dockerfile: Dev.Dockerfile
+      context: .
+    environment:
+      - RUST_BACKTRACE=1
+    command:
+      [
+        "/bin/cnc-service",
+        "--port=8080",
+        "--database-url=postgres://postgres:toor@db/cnc",
+        "--site-external-url=http://localhost:8080",
+        "--mail-service-url=http://mail-service:8079",
+      ]
+    ports:
+      - "8080:8080"
+    # waits for postgres's healthcheck to succeed before running cnc-service
+    depends_on:
+      db:
+        condition: service_healthy

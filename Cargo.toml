@@ -1,0 +1,21 @@
+[package]
+name = "cnc-service"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+rand = "0.8.4"
+tokio-postgres = "0.7.3"
+rust-argon2 = "0.8.3"
+sha2 = "0.9.8"
+reqwest = { version = "0.11.4", features = ["json"] }
+warp = "0.3.1"
+clap = "3.0.0-beta.4"
+tokio = { version = "1.12.0", features = ["full"] }
+serde = { version = "1.0.130", features = ["derive"] }
+serde_json = "1.0.68"
+cnc-service-api = {version = "*", git = "https://github.com/innexgo/cnc-service-api" }
+mail-service-api = {version = "*", git = "https://github.com/innexgo/mail-service-api", features=["client"]}
+base64-url = "1.4.10"
