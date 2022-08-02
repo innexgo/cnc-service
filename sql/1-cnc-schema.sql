@@ -19,7 +19,7 @@ create table auth_card_t(
 
 drop table if exists auth_card_data_t cascade;
 create table auth_card_data_t(
-  auth_card_data_id bigserial not null,
+  auth_card_data_id bigserial,
   creation_time bigint not null,
   creator_user_id bigint not null,
   auth_card_id text not null,
@@ -48,7 +48,7 @@ create table scanner_t (
 -- Mutable data about a scanner 
 drop table if exists scanner_data_t cascade;
 create table scanner_data_t(
-  scanner_data_id bigserial not null primary key,
+  scanner_data_id bigserial primary key,
   creation_time bigint not null,
   creator_user_id bigint not null,
   scanner_id text not null references scanner_t(scanner_id),
@@ -70,7 +70,7 @@ create view recent_scanner_data_v as
 -- place fields for expensive operations that need to access data from the 
 drop table if exists scanner_cache_t;
 create table scanner_cache_t(
-  scanner_cache_id bigserial not null primary key,
+  scanner_cache_id bigserial primary key,
   creation_time bigint not null,
   creator_user_id bigint not null,
   scanner_id text not null references scanner_t(scanner_id),
@@ -82,7 +82,7 @@ create table scanner_cache_t(
 -- This is a command from the server to a scanner
 drop table if exists command_t cascade;
 create table command_t(
-  command_id bigserial not null,
+  command_id bigserial,
   creation_time bigint not null,
   creator_user_id bigint not null,
   scanner_id text not null references scanner_t(scanner_id),
@@ -92,7 +92,7 @@ create table command_t(
 -- This is the response of a scanner.
 drop table id exists command_ack_t cascade;
 create table command_t_ack(
-  command_ack_id bigserial not null primary key,
+  command_ack_id bigserial primary key,
   creation_time bigint not null,
   command_id bigint not null references command_t(command_id)
 );
