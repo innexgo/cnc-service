@@ -7,26 +7,28 @@ It then forwards this sign-in attempts to another service via websockets.
 Additionally, it has a web interface that allows for easy administration of devices.
 
 
-## Backend Methods
+## Methods for communicating with the hardware device
 
-* Initialize - Done to add a device to your account (once done, saves to flash)
-  When the device first turns on (unconfigured) it can be assiociated to any network.
-  It is primed with a set of secret hardware keys that should be released.
+* Register - Done to add a device to your account (once done, saves to flash)
+  When the device first turns on (unconfigured) it can be registered to any network.
+  It is primed with a set of secret hardware keys that should not be released.
   When it encounters these keys it goes into pairing mode.
   * Request sent from device to CNC (via HTTP):
+    * `https://<host>/public/register`
     ```json
-    { "kind": "INITIALIZE", "uid": "32 byte string base64", "cardId": "32 byte string" }
+    { "kind": "REGISTER", "uid": "32 byte string base64", "supervisorCardId": "32 byte string" }
     ```
   * Success Response:
     ```json
-    { "kind": "INITIALIZE_SUCCESS" }
+    { "kind": "REGISTER_SUCCESS" }
     ```
   * Failure Response:
     ```json
-    { "kind": "INITIALIZE_FAIL" }
+    { "kind": "REGISTER_FAIL" }
     ```
-* Startup - Runs whenever an intialized device turns on, or reboots
+* Startup - Runs whenever an register device turns on, or reboots, or right after an hardware registers
   * Request (via websocket):
+    * `wss://<host>/public/websocket`
     ```json
     { "kind": "STARTUP", "uid": "32 byte string base64" }
     ```
@@ -38,21 +40,68 @@ Additionally, it has a web interface that allows for easy administration of devi
     ```json
     { "kind": "STARTUP_FAIL" }
     ```
-* Command message -  a command sent from the server to the hardware device
+* Command message -  a command sent from the CNC server to the hardware device
   * Request (via websocket):
+    * `wss://<host>/websocket`
     ```json
-    { "kind": "COMMAND", "commandId": 123, "commandKind: "POWER_CYCLE | FULL_RESET | FLASH | BEEP"}
+    { "kind": "COMMAND", "commandId": 123, "commandKind": "POWER_CYCLE | FULL_RESET | FLASH | BEEP"}
     ```
-  * Response:
+  * Success Response:
     ```json
     { "kind": "COMMAND_ACK", "commandId": 123 }
     ```
-* Card Read - happens whenever a card is in close proximity to the sensor
+* Card Read - sent from device to CNC whenever a card is in close proximity to the sensor
   * Request (via websocket):
+    * `wss://<host>/public/websocket`
     ```json
-    { "kind": "CARD_READ", "cardId": 123, "cardPayload": [12, 12, 123] }
+    { "kind": "CARD_READ", "cardReadId": 123, "cardPayload": [12, 12, 123] }
     ```
-  * Response:
+  * Success Response:
     ```json
-    { "kind": "CARD_READ_ACK", "cardId": 123, "sound": "IN | OUT | ACK | ERROR" } 
+    { "kind": "CARD_READ_ACK", "cardReadId": 123, "sound": "IN | OUT | ACK | ERROR | TIMED_OUT" }
+    ```
+  * Failure Response:
+    ```json
+    { "kind": "NO_STARTUP" }
+    ```
 * ping & pong (included inside websocket protocol)
+
+
+## Methods for Communicating with Another Microservice
+This allows you to watch for card reads, and forward commands from another microservice.
+
+* Forward Card Read - sent from CNC to a listening microservice when a card read is recieved
+  * Request sent from CNC (via websocket):
+    * `wss://<host>/feed`
+    ```json
+    { "kind": "CARD_READ", "deviceId": 123, "cardReadId": 123, "cardPayload": [12, 12, 123] }
+    ```
+    ```json
+    { "kind": "INITIALIZE", "deviceId": 123, "uid": "32 byte string base64", "supervisorCardId": "32 byte string" }
+    ```
+  * Response sent from microservice:
+    ```json
+    { "kind": "CARD_READ_ACK", "deviceId": 123, "cardReadId": 123, "sound": "IN | OUT | ACK | ERROR" }
+    ```
+
+* Forward Command - sent from a microservice to CNC
+  * Request from a microservice to the CNC (via http):
+    * `https://<host>/command`
+    ```json
+    { "deviceId": 123, "commandKind": "POWER_CYCLE | FULL_RESET | FLASH | BEEP"}
+    ```
+  * Success Response:
+    ```json
+    {}
+    ```
+  * Failure Reponse:
+    ```json
+    "{ "kind": "DEVICE_NONEXISTENT" }"
+    ```
+  * Failure Reponse:
+    ```json
+    "{ "kind": "DEVICE_TIMED_OUT" }"
+    ```
+
+* Device Query - allows the microservice to see which devices are registered
+  * Request sent from a microservice to CNC
